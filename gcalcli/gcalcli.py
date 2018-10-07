@@ -64,6 +64,8 @@ import textwrap
 import signal
 import json
 import random
+import tempfile
+import subprocess
 from datetime import datetime, timedelta, date
 from unicodedata import east_asian_width
 from collections import namedtuple
@@ -194,7 +196,23 @@ class GoogleCalendarInterface:
                         os.path.expanduser(
                             "%s/oauth" % self.options['configFolder']))
             else:
-                storage = Storage(os.path.expanduser('~/.gcalcli_oauth'))
+                with tempfile.NamedTemporaryFile() as temp_file:
+                    fname = os.path.expanduser('~/.gcalcli_oauth.gpg')
+                    passphrase = subprocess.check_output(['pass', 'gpgpassword'])
+                    subprocess.check_call([
+                        'gpg',
+                        '--yes',
+                        '--batch',
+                        '--passphrase',
+                        passphrase,
+                        '--use-agent',
+                        '--output',
+                        temp_file.name,
+                        '--decrypt',
+                        fname
+                    ])
+                    storage = Storage(temp_file.name)
+                    credentials = storage.get()
             credentials = storage.get()
 
             if credentials is None or credentials.invalid:
